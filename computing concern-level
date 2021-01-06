@@ -1,0 +1,55 @@
+# -*- coding: utf-8 -*-
+
+import pandas as pd
+
+data = pd.read_csv("D:/COVID/output/combined/sept.csv")
+data1 = data.groupby(['final_data','sentiment_str'])['sentiment_str'].count()
+
+new_dict = {}
+current_state = None
+negative_category = 0
+positive_category = 0
+neutral = 0
+    
+for key,value in data1.items():    
+    state,sentiment = key
+    
+    if state not in new_dict.keys():
+        new_dict[state] = []
+        #print (current_state)
+          
+    if current_state!=None and state !=current_state:
+        concern_level = float(negative_category)/float((negative_category+positive_category+neutral))
+        new_dict[current_state].extend([current_state,concern_level,positive_category,\
+                negative_category,neutral])
+        negative_category = 0
+        positive_category = 0
+        neutral = 0
+        current_state = state
+        if sentiment.lower() in ["negative","verynegative"]:
+            negative_category+=int(value)
+        elif sentiment.lower() in ["positive","verypositive"]:
+            positive_category+=int(value)
+        elif sentiment.lower() in ["neutral"]:
+            neutral +=int(value)
+       
+    else:
+        current_state = state
+        if sentiment.lower() in ["negative","verynegative"]:            
+            negative_category+=int(value)
+        elif sentiment.lower() in ["positive","verypositive"]:
+            positive_category+=int(value)
+        elif sentiment.lower() in ["neutral"]:
+            neutral +=int(value)
+
+if state == current_state:    
+    concern_level = float(negative_category)/float((negative_category+positive_category+neutral))
+    new_dict[current_state].extend([current_state,concern_level,positive_category,\
+            negative_category,neutral])
+
+data_list = []
+for key in new_dict.keys():
+    data_list.append(new_dict[key])
+
+df = pd.DataFrame(data_list, columns = ['state',"concern_level","positive","negative","neutral"])  
+
