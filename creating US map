@@ -1,0 +1,31 @@
+# -*- coding: utf-8 -*-
+
+import plotly.express as px
+import pandas as pd
+
+data_file='''path to csv file that is output of concern level computation'''
+df=pd.read_csv( data_file)
+
+df['state_final'] = df.state.apply(lambda x: str(x).upper())
+
+fig = px.choropleth(
+            df,
+            
+            locations="state_final",
+            
+            color="concern_level",
+    
+            range_color=[0.5, 1.0],
+            color_continuous_scale=px.colors.diverging.RdYlGn[::-1],
+            
+            hover_data=['state_final', "concern_level", "positive", "negative", "neutral"],
+                    
+            locationmode = 'USA-states'
+)
+
+fig.update_layout(
+    title_text = 'Corona Virus Tweet Concern Level',
+    geo_scope='usa',
+)
+
+fig.show()
