@@ -1,0 +1,140 @@
+# -*- coding: utf-8 -*-
+
+import pandas as pd
+import re
+import sys
+#import glob
+#import os
+
+
+DATAPATH = "path to folder that contains DATA_FILE"
+COUNTRIES = "path to csv file that contains all countries"
+US_STATES = "path to csv file that contains all US cities and their respective states"
+OUTPUTFILE_PATH = "path to write computed output"
+DATA_FILE = "csv file that contains sentimental analysis of twitter data"
+OUTPUT_FILE = "output csv file"
+
+
+class covid():
+    
+    def __init__(self,folder_name):
+        self.datapath = DATAPATH+"/"+folder_name+"/"
+        self.outputfile_path = OUTPUTFILE_PATH +"/"+folder_name+"/"
+        
+       
+    def find_country(self,x,country):    
+        c = x.split(',')
+        c = [x.strip() for x in c]
+        ret = 0
+        for element in country:
+            if element in c:
+                ret = element
+        return ret
+
+
+    def find_abbr(self,x, abbr):
+        a = x.split(',')
+        a = [re.sub('\W+','', ele ) for ele in a]
+        ret = 0
+        for element in abbr:
+            if element in a:
+                ret = element 
+        return ret
+
+
+    def find_city(self,x, cities_u):
+        fc = x.split(',')
+        fc = [x.strip() for x in fc]
+        ret = 0
+        for element in cities_u:
+            if element in fc:
+                ret = element
+        return ret    
+    
+    
+    def find_state(self,x, state_u):
+        s = x.split(',')
+        s = [x.strip() for x in s]
+        ret = 0        
+        for element in state_u:
+            if element in s:
+                ret = element            
+        return ret 
+    
+    
+    def checkData(self,data,column_name,column_name_map,us_states):
+        response = 0
+        if data:
+            response = us_states.loc[us_states[column_name] == data, column_name_map].iloc[0]   
+        return response
+
+    
+    def processFiles(self,datafile,countries,us_states):
+        data = pd.read_csv(self.datapath+datafile)
+        data['location'] = data.user_loc.apply(lambda x: str(x).lower())
+        data['location'] = data.location.apply(lambda x: ''.join(filter(lambda item: not item.isdigit(),x)))
+        countries['country'] = countries.country.apply(lambda x: str(x).lower())
+        us_states['state_name'] = us_states.state_name.apply(lambda x: str(x).lower())
+        us_states['state_id'] = us_states.state_id.apply(lambda x: str(x).lower())
+        us_states['city'] = us_states.city.apply(lambda x: str(x).lower())
+        
+        ### Creating columns for result data:
+        country = list(countries['country'])
+        cities_u = list(us_states.city.unique())
+        state_u = list(us_states.state_name.unique())
+        abbr = list(us_states['state_id'].unique())
+        
+        data['foreign'] = data.location.apply(lambda x: self.find_country(x,country))
+        for index, row in data.iterrows():    
+            if ("india" in str(row['location']) and "tn" in str(row["location"])):        
+                data.at[index,'foreign'] = "india"
+        
+            ### Removing foreign data:   
+            data_us =data[data['foreign'] == 0]
+            
+            ### retrieving state names:
+            data_us['abbr'] = data_us.location.apply(lambda x: self.find_abbr(x,abbr))
+            data_us['state_s']= data_us.location.apply(lambda x: self.find_state(x,state_u))
+            data_us['city_s'] = data_us.location.apply(lambda x: self.find_state(x,cities_u))
+            data_us["getstate"] = data_us.state_s.apply(lambda x:self.checkData(x,\
+                "state_name","state_id",us_states))
+            data_us["getcity"] = data_us.city_s.apply(lambda x:self.checkData(x,\
+                "city","state_id",us_states))
+            
+            data_us["final_data"] = str(0)
+            
+            for index, row in data_us.iterrows():   
+                if (str(row['abbr'])!=str(0)):       
+                    data_us.at[index,'final_data'] = row["abbr"]
+                    
+                elif (str(row["getstate"])!=str(0)):        
+                    data_us.at[index,'final_data'] = row["getstate"]
+                    
+                elif (str(row["getcity"])!=str(0)):
+                    data_us.at[index,'final_data'] = row["getcity"]
+                   
+            final = data_us[data_us['final_data'] != '0']
+            return final
+                   
+            
+    def readFiles(self):
+        countries = pd.read_csv(COUNTRIES)
+        us_states = pd.read_csv(US_STATES)
+        data = self.datapath + DATA_FILE
+        #data_list = glob.glob(self.datapath + "/*.csv")
+        
+        #if not os.path.exists(self.outputfile_path):
+        #    os.makedirs(self.outputfile_path)
+        
+        final = self.processFiles(data,countries,us_states)    
+        final.to_csv(self.outputfile_path+OUTPUT_FILE, index=False)
+  
+
+def main():
+    date_today = sys.argv[1]
+    #for month in month_list:
+    covidobj = covid(date_today)
+    covidobj.readFiles()
+
+if __name__ == "__main__":
+    main()
